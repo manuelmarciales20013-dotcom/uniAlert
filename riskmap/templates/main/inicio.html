@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block contenido %}
+<section class="card">
+  <h1>Bienvenido, {{ usuario.nombre }}</h1>
+  {% if usuario.rol == 'administrador' %}
+    <p>Administra los registros de la base de datos y las cuentas del sistema.</p>
+    <a class="button" href="{{ url_for('admin.admin_inicio') }}">Abrir módulo Administrador</a>
+  {% elif usuario.rol == 'profesor' %}
+    <h2>Espacio del Profesor</h2>
+    <p>Importa estudiantes desde un Excel para un programa registrado.</p>
+    <form method="post" action="{{ url_for('main.importar') }}" enctype="multipart/form-data">
+      <label for="id_programa">Programa</label>
+      <select id="id_programa" name="id_programa" required>
+        <option value="">Selecciona un programa</option>
+        {% for id, nombre in programas %}
+          <option value="{{ id }}">{{ nombre }}</option>
+        {% endfor %}
+      </select>
+      <label for="archivo">Archivo Excel (.xlsx)</label>
+      <input id="archivo" type="file" name="archivo" accept=".xlsx" aria-describedby="columnas-excel" required>
+      <small id="columnas-excel">Columnas necesarias: Código, Estudiante y Correo.</small>
+      <br>
+      <button {% if not programas %}disabled{% endif %}>Procesar archivo</button>
+    </form>
+  {% else %}
+    <h2>Espacio del Director de Programa</h2>
+    <p>Tu cuenta está activa. El acceso a las funciones de administración de registros corresponde al Administrador.</p>
+  {% endif %}
+</section>
+{% endblock %}

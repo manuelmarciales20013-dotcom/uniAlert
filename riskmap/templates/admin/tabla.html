@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('admin.admin_inicio') }}">← Volver a las tablas</a>
+<section class="card">
+  <h1>Administrar: {{ tabla }}</h1>
+  <p class="muted">Los campos de clave primaria automática se generan al guardar.</p>
+  <h2>{{ 'Editar registro' if registro else 'Crear registro' }}</h2>
+  <form method="post" action="{{ url_for('admin.guardar_registro', tabla=tabla) }}">
+    <input type="hidden" name="accion" value="{{ 'actualizar' if registro else 'crear' }}">
+    {% if registro %}
+      <input type="hidden" name="pk_value" value="{{ registro[pk] }}">
+    {% endif %}
+    <div class="grid">
+      {% for campo in campos %}
+        {% if not campo.auto %}
+        <div>
+          <label for="campo-{{ campo.name }}">{{ campo.name }}{% if campo.required %} *{% endif %}</label>
+          {% if campo.options is not none %}
+            <select id="campo-{{ campo.name }}" name="{{ campo.name }}" {% if campo.required %}required{% endif %}>
+              <option value="">{{ 'Selecciona…' if not campo.required else 'Selecciona un valor' }}</option>
+              {% for value, label in campo.options %}
+                <option value="{{ value }}" {% if registro and registro[campo.name]|string == value|string %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input id="campo-{{ campo.name }}" name="{{ campo.name }}"
+              value="{{ registro[campo.name] if registro and registro[campo.name] is not none else '' }}"
+              {% if campo.required %}required{% endif %}
+              {% if campo.input_type %}type="{{ campo.input_type }}"{% endif %}
+              {% if campo.input_type == 'number' %}step="any"{% endif %}
+              {% if campo.name == 'clave' %}autocomplete="new-password" placeholder="{{ 'Dejar vacía para conservarla' if registro else 'Contraseña inicial' }}"{% endif %}>
+          {% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <button type="submit">{{ 'Guardar cambios' if registro else 'Crear registro' }}</button>
+    {% if registro %}<a class="button secondary" href="{{ url_for('admin.admin_tabla', tabla=tabla) }}">Cancelar</a>{% endif %}
+  </form>
+</section>
+<section class="card">
+  <h2>Registros</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          {% for c in campos %}{% if c.name != 'password_hash' %}<th scope="col">{{ c.name }}</th>{% endif %}{% endfor %}
+          <th scope="col">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas %}
+        <tr>
+          {% for c in campos %}
+            {% if c.name != 'password_hash' %}<td>{{ '••••••' if c.name == 'clave' else fila[c.name] }}</td>{% endif %}
+          {% endfor %}
+          <td>
+            <div class="actions">
+              <a class="button secondary" href="{{ url_for('admin.admin_tabla', tabla=tabla, editar=fila[pk]) }}">Editar</a>
+              <form class="inline" method="post" action="{{ url_for('admin.guardar_registro', tabla=tabla) }}" onsubmit="return confirm('¿Eliminar este registro?')">
+                <input type="hidden" name="accion" value="eliminar">
+                <input type="hidden" name="pk_value" value="{{ fila[pk] }}">
+                <button class="danger">Eliminar</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+          <tr><td colspan="{{ campos|length + 1 }}">No hay registros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

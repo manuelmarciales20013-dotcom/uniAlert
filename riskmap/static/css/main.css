@@ -1,0 +1,83 @@
+/* Paleta tomada del logo suministrado por la Universidad. */
+:root {
+  --usb-green: #008334;
+  --usb-green-dark: #005d26;
+  --usb-green-soft: #edf7f0;
+  --text: #243c2f;
+  --muted: #5c6e63;
+  --border: #d6e4da;
+  --surface: #fff;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: var(--text);
+  background: #f4f7f4;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
+.site-header {
+  background: var(--surface);
+  border-top: 6px solid var(--usb-green);
+  border-bottom: 1px solid var(--border);
+  padding: 16px max(calc((100% - 1140px) / 2), 24px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand { display: flex; align-items: center; gap: 18px; text-decoration: none; color: var(--usb-green-dark); }
+.brand-logo { width: 100px; height: 64px; object-fit: contain; }
+.brand-text { display: flex; flex-direction: column; gap: 5px; border-left: 1px solid var(--border); padding-left: 18px; }
+.brand-text strong { font-size: 21px; letter-spacing: -.5px; }
+.brand-text span, .header-caption { color: var(--muted); font-size: 13px; }
+nav { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; font-size: 14px; }
+nav a, .back-link { color: var(--usb-green-dark); text-decoration: none; font-weight: 600; }
+nav a:hover, .back-link:hover { text-decoration: underline; }
+.user-info { font-weight: 600; }
+.user-info small { display: block; color: var(--muted); font-weight: 400; margin-top: 4px; }
+.logout-link { border: 1px solid var(--border); padding: 9px 12px; border-radius: 6px; }
+main { width: 100%; max-width: 1140px; margin: 32px auto; padding: 0 24px; flex: 1; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin: 16px 0; box-shadow: 0 4px 18px #163b2210; }
+h1, h2 { color: var(--usb-green-dark); line-height: 1.25; }
+h1 { font-size: 28px; margin: 0 0 14px; letter-spacing: -.5px; }
+h2 { font-size: 20px; }
+p { line-height: 1.6; }
+.login-card { max-width: 460px; margin: 32px auto; padding: 36px; border-top: 4px solid var(--usb-green); }
+.login-logo { display: block; width: 195px; height: auto; margin: 0 auto 26px; }
+.eyebrow { color: var(--usb-green); font-size: 12px; font-weight: 700; letter-spacing: .6px; text-align: center; }
+.login-card h1, .login-card > .muted { text-align: center; }
+.login-card button { width: 100%; margin-top: 24px; }
+label { display: block; font-size: 14px; font-weight: 600; margin: 18px 0 7px; }
+input, select { width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid #aabeb0; border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
+input:focus, select:focus { outline: 2px solid var(--usb-green); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--usb-green); outline-offset: 3px; }
+button, .button { display: inline-block; margin-top: 16px; padding: 12px 17px; border: 0; border-radius: 6px; background: var(--usb-green); color: #fff; cursor: pointer; text-decoration: none; font: 600 14px "Segoe UI", Arial, sans-serif; text-align: center; }
+button:hover, .button:hover { background: var(--usb-green-dark); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.secondary { background: #e6f1e9; color: var(--usb-green-dark); }
+.secondary:hover { background: #d5e7da; }
+.danger { background: #a83434; }
+.danger:hover { background: #822626; }
+.notice { padding: 14px 18px; border-radius: 6px; background: #e5f3e9; border-left: 4px solid var(--usb-green); margin: 12px 0; overflow-wrap: anywhere; }
+.error { background: #fceeee; color: #7b2020; border-color: #a83434; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.tablewrap { overflow: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { background: var(--usb-green-soft); color: var(--usb-green-dark); }
+tbody tr:hover { background: #f7faf7; }
+.inline { display: inline; }
+.muted, small { color: var(--muted); }
+.actions { display: flex; gap: 8px; align-items: center; }
+.actions button, .actions .button { margin: 0; }
+footer { padding: 22px 24px; border-top: 1px solid var(--border); color: var(--muted); text-align: center; font-size: 12px; }
+footer span { margin: 0 8px; color: var(--usb-green); }
+@media (max-width: 700px) {
+  .site-header { flex-direction: column; align-items: flex-start; padding: 14px 18px; gap: 16px; }
+  nav { gap: 12px; }
+  .brand-logo { width: 80px; height: 55px; }
+  .brand-text span { font-size: 11px; }
+  .header-caption { display: none; }
+  main { padding: 0 16px; margin: 20px auto; }
+  .card { padding: 20px; }
+  .login-card { padding: 28px 22px; margin: 12px auto; }
+  h1 { font-size: 24px; }
+}

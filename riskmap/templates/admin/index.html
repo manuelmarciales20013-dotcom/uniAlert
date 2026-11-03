@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block contenido %}
+<section class="card">
+  <h1>Módulo Administrador</h1>
+  <p>Selecciona una tabla para consultar y administrar sus registros.</p>
+  <div class="grid">
+    {% for tabla in tablas %}
+      <a class="button" href="{{ url_for('admin.admin_tabla', tabla=tabla) }}">{{ tabla }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

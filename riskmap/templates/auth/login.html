@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block contenido %}
+<section class="card login-card">
+  <img class="login-logo" src="{{ url_for('static', filename='images/logo-universidad.png') }}" alt="Universidad Simón Bolívar">
+  <p class="eyebrow">riskMapUSB · Portal institucional</p>
+  <h1>Iniciar sesión</h1>
+  <p class="muted">Ingresa con tu cuenta institucional.</p>
+  <form method="post">
+    <label for="correo">Correo institucional</label>
+    <input id="correo" name="correo" type="email" autocomplete="username" required>
+    <label for="clave">Contraseña</label>
+    <input id="clave" name="clave" type="password" autocomplete="current-password" required>
+    <button type="submit">Ingresar</button>
+  </form>
+</section>
+{% endblock %}
