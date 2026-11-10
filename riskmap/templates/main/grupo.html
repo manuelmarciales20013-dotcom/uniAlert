@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('main.inicio') }}">← Volver al dashboard</a>
+
+<section class="card">
+  <h1>{{ grupo.asignatura }} — {{ grupo.nombre_grupo }}</h1>
+  <p class="muted">
+    <strong>Código de grupo:</strong> {{ grupo.cod_grupo }} ·
+    <strong>Programa:</strong> {{ grupo.programa }} ({{ grupo.semestre }}° semestre) ·
+    <strong>Periodo:</strong> {{ grupo.periodo }} ·
+    <strong>Docente:</strong> {{ grupo.docente }} ({{ grupo.correo_docente }})
+  </p>
+  {% if not puede_modificar %}
+    <div class="notice">
+      Modo de consulta (solo lectura): puedes revisar el riesgo, las calificaciones e inasistencias de esta materia sin realizar modificaciones.
+    </div>
+  {% endif %}
+
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-total">
+      <span>Estudiantes en el curso</span>
+      <strong>{{ resumen_riesgo.total }}</strong>
+    </div>
+    <div class="kpi-card kpi-normal">
+      <span>Normal (0–29)</span>
+      <strong>{{ resumen_riesgo.normal }}</strong>
+    </div>
+    <div class="kpi-card kpi-atencion">
+      <span>Atención (30–59)</span>
+      <strong>{{ resumen_riesgo.atencion }}</strong>
+    </div>
+    <div class="kpi-card kpi-prioritario">
+      <span>Prioritario (60–100)</span>
+      <strong>{{ resumen_riesgo.prioritario }}</strong>
+    </div>
+  </div>
+
+  {% if resumen_riesgo.total > 0 %}
+  <div class="risk-map-row">
+    <span class="risk-map-label">Distribución del curso</span>
+    <div class="risk-bar">
+      {% if resumen_riesgo.pct_normal > 0 %}
+        <div class="seg-normal" style="width: {{ resumen_riesgo.pct_normal }}%"></div>
+      {% endif %}
+      {% if resumen_riesgo.pct_atencion > 0 %}
+        <div class="seg-atencion" style="width: {{ resumen_riesgo.pct_atencion }}%"></div>
+      {% endif %}
+      {% if resumen_riesgo.pct_prioritario > 0 %}
+        <div class="seg-prioritario" style="width: {{ resumen_riesgo.pct_prioritario }}%"></div>
+      {% endif %}
+    </div>
+    <span class="risk-map-count">{{ resumen_riesgo.prioritario }} prioritario{{ '' if resumen_riesgo.prioritario == 1 else 's' }}</span>
+  </div>
+  {% endif %}
+
+  <details class="risk-dropdown">
+    <summary>
+      Mirar estudiantes en riesgo en esta materia ({{ en_riesgo|length }} — {{ resumen_riesgo.prioritario }} prioritarios, {{ resumen_riesgo.atencion }} en atención)
+    </summary>
+    <div class="dropdown-body">
+      {% for est in en_riesgo %}
+        <a class="priority-item" href="{{ url_for('main.ver_estudiante', id_estudiante=est.id_estudiante) }}">
+          <div class="priority-left">
+            <span class="priority-dot {{ 'atencion' if est.nivel == 'atencion' else '' }}" aria-hidden="true"></span>
+            <div>
+              <span class="priority-name">{{ est.cod_estudiante }} · {{ est.nombre }}</span>
+              <span class="priority-sub">{{ est.etiqueta }} — {{ est.motivos|join(' · ') }}</span>
+            </div>
+          </div>
+          <span class="priority-score {{ 'atencion' if est.nivel == 'atencion' else '' }}">{{ est.puntaje }} pts</span>
+        </a>
+      {% else %}
+        <p class="muted">No hay estudiantes en riesgo (Atención o Prioritario) en esta materia.</p>
+      {% endfor %}
+    </div>
+  </details>
+</section>
+
+{% if confirmacion_pendiente %}
+<section class="card warning-card" role="alert">
+  <h2>{{ confirmacion_pendiente.titulo }}</h2>
+  <p>Revisa las siguientes advertencias antes de guardar en la base de datos:</p>
+  <ul>
+    {% for aviso in confirmacion_pendiente.avisos %}
+      <li>{{ aviso }}</li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="{{ confirmacion_pendiente.url_destino }}">
+    <input type="hidden" name="corte" value="{{ confirmacion_pendiente.corte }}">
+    <input type="hidden" name="archivo_b64" value="{{ confirmacion_pendiente.archivo_b64 }}">
+    <input type="hidden" name="confirmar" value="si">
+    <div class="actions">
+      <button type="submit">Confirmar y sobrescribir</button>
+      <a class="button secondary" href="{{ url_for('main.ver_grupo', id_grupo=grupo.id_grupo) }}">Cancelar</a>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+{% if puede_modificar %}
+<div class="grid">
+  <section class="card">
+    <h2>Cargar inasistencias (PDF)</h2>
+    <p class="muted">Sube el reporte PDF de diagnóstico de asistencia. El sistema lo transforma en Excel internamente y extrae las faltas del corte elegido.</p>
+    <form method="post" action="{{ url_for('main.cargar_inasistencias', id_grupo=grupo.id_grupo) }}" enctype="multipart/form-data">
+      <label for="corte-inasistencia">Corte académico</label>
+      <select id="corte-inasistencia" name="corte" required>
+        <option value="">Selecciona el corte</option>
+        {% for codigo_corte, info_corte in cortes.items() %}
+          <option value="{{ codigo_corte }}">
+            {{ info_corte.etiqueta }}{% if cortes_inasistencia[codigo_corte] %} (ya cargado){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <label for="archivo-inasistencia">Reporte de asistencia (.pdf)</label>
+      <input id="archivo-inasistencia" type="file" name="archivo" accept=".pdf" required>
+      <small>El corte P2 y Exa restan automáticamente el acumulado de los cortes anteriores.</small>
+      <br>
+      <button type="submit">Procesar PDF de inasistencias</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Cargar calificaciones (PDF)</h2>
+    <p class="muted">Sube el reporte PDF de detalle de calificaciones. El sistema lo transforma en Excel internamente y actualiza todas las notas disponibles (los cortes en 0 sin evaluar quedan como NULL).</p>
+    <form method="post" action="{{ url_for('main.cargar_calificaciones', id_grupo=grupo.id_grupo) }}" enctype="multipart/form-data">
+      <label for="archivo-calificacion">Reporte de calificaciones (.pdf)</label>
+      <input id="archivo-calificacion" type="file" name="archivo" accept=".pdf" required>
+      <small>Columnas requeridas en el reporte: Código, P1, P2 y Exa. Se puede subir cuantas veces sea necesario para actualizar notas.</small>
+      <br>
+      <button type="submit">Procesar PDF de calificaciones</button>
+    </form>
+  </section>
+</div>
+{% endif %}
+
+<section class="card">
+  <h2>Listado general del curso</h2>
+  <details class="risk-dropdown">
+    <summary>Ver tabla completa de estudiantes ({{ estudiantes|length }})</summary>
+    <div class="tablewrap" style="padding: 12px;">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Código</th>
+            <th scope="col">Estudiante</th>
+            <th scope="col">Nota P1</th>
+            <th scope="col">Nota P2</th>
+            <th scope="col">Nota Exa</th>
+            <th scope="col">Prom.</th>
+            <th scope="col">Faltas (P1/P2/Exa)</th>
+            <th scope="col">Total Faltas</th>
+            <th scope="col">Puntaje</th>
+            <th scope="col">Nivel de alerta</th>
+            <th scope="col">Factores explicables</th>
+            <th scope="col">Ficha</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for est in estudiantes %}
+          <tr>
+            <td>{{ est.cod_estudiante }}</td>
+            <td>
+              <a href="{{ url_for('main.ver_estudiante', id_estudiante=est.id_estudiante) }}"><strong>{{ est.nombre }}</strong></a>
+              <br><small class="muted">{{ est.correo }}</small>
+            </td>
+            <td>{{ est.nota_1 if est.nota_1 is not none else '—' }}</td>
+            <td>{{ est.nota_2 if est.nota_2 is not none else '—' }}</td>
+            <td>{{ est.nota_3 if est.nota_3 is not none else '—' }}</td>
+            <td><strong>{{ '%.2f'|format(est.promedio) if est.promedio is not none else '—' }}</strong></td>
+            <td>
+              {{ est.inas_1|int if est.inas_1 is not none else '—' }} /
+              {{ est.inas_2|int if est.inas_2 is not none else '—' }} /
+              {{ est.inas_3|int if est.inas_3 is not none else '—' }}
+            </td>
+            <td><strong>{{ est.total_inasistencias if est.total_inasistencias is not none else '—' }}</strong></td>
+            <td><strong>{{ est.puntaje }}</strong></td>
+            <td><span class="badge badge-{{ est.nivel }}">{{ est.etiqueta }}</span></td>
+            <td>
+              <ul class="reason-list">
+                {% for m in est.motivos %}<li>{{ m }}</li>{% endfor %}
+              </ul>
+            </td>
+            <td>
+              <a class="button secondary" href="{{ url_for('main.ver_estudiante', id_estudiante=est.id_estudiante) }}">Ver ficha</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="12">Aún no hay registros de calificaciones ni inasistencias cargados para este grupo.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+</section>
+{% endblock %}

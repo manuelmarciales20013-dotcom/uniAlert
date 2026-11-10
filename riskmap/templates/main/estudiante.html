@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('main.inicio') }}">← Volver al dashboard</a>
+
+<section class="card">
+  <h1>{{ estudiante.nombre }}</h1>
+  <p class="muted">
+    <strong>Código institucional:</strong> {{ estudiante.cod_estudiante }} ·
+    <strong>Correo:</strong> {{ estudiante.correo }} ·
+    <strong>Programa:</strong> {{ estudiante.programa }}
+  </p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-{{ riesgo_global.nivel }}">
+      <span>Riesgo global ({{ riesgo_global.etiqueta }})</span>
+      <strong>{{ riesgo_global.puntaje }} / 100</strong>
+    </div>
+    <div class="kpi-card kpi-total">
+      <span>Promedio general disponible</span>
+      <strong>{{ '%.2f'|format(riesgo_global.promedio_global) if riesgo_global.promedio_global is not none else '—' }}</strong>
+    </div>
+    <div class="kpi-card kpi-atencion">
+      <span>Inasistencias acumuladas</span>
+      <strong>{{ riesgo_global.inasistencia_global }}</strong>
+    </div>
+    <div class="kpi-card kpi-prioritario">
+      <span>Asignaturas en alerta</span>
+      <strong>{{ riesgo_global.rojas }} rojas · {{ riesgo_global.amarillas }} amarillas</strong>
+    </div>
+  </div>
+
+  <h2>Explicación del riesgo global</h2>
+  <ul>
+    {% for motivo in riesgo_global.motivos %}
+      <li>{{ motivo }}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Riesgo detallado por materia</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Periodo</th>
+          <th scope="col">Semestre</th>
+          <th scope="col">Asignatura</th>
+          <th scope="col">Grupo</th>
+          <th scope="col">Docente</th>
+          <th scope="col">Notas (P1 / P2 / Exa)</th>
+          <th scope="col">Promedio</th>
+          <th scope="col">Faltas (P1 / P2 / Exa)</th>
+          <th scope="col">Total Faltas</th>
+          <th scope="col">Puntaje</th>
+          <th scope="col">Nivel</th>
+          <th scope="col">Explicación de puntos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in materias %}
+        <tr>
+          <td>{{ m.periodo }}</td>
+          <td>{{ m.semestre }}°</td>
+          <td>
+            <a href="{{ url_for('main.ver_grupo', id_grupo=m.id_grupo) }}"><strong>{{ m.asignatura }}</strong></a>
+            <small class="muted">({{ m.cod_asignatura }})</small>
+          </td>
+          <td>{{ m.nombre_grupo }}</td>
+          <td>{{ m.docente }}</td>
+          <td>
+            {{ m.nota_1 if m.nota_1 is not none else '—' }} /
+            {{ m.nota_2 if m.nota_2 is not none else '—' }} /
+            {{ m.nota_3 if m.nota_3 is not none else '—' }}
+          </td>
+          <td><strong>{{ '%.2f'|format(m.promedio) if m.promedio is not none else '—' }}</strong></td>
+          <td>
+            {{ m.inas_1|int if m.inas_1 is not none else '—' }} /
+            {{ m.inas_2|int if m.inas_2 is not none else '—' }} /
+            {{ m.inas_3|int if m.inas_3 is not none else '—' }}
+          </td>
+          <td><strong>{{ m.total_inasistencias if m.total_inasistencias is not none else '—' }}</strong></td>
+          <td><strong>{{ m.puntaje }}</strong></td>
+          <td><span class="badge badge-{{ m.nivel }}">{{ m.etiqueta }}</span></td>
+          <td>
+            <ul class="reason-list">
+              {% for motivo in m.motivos %}<li>{{ motivo }}</li>{% endfor %}
+            </ul>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="12">El estudiante aún no tiene asignaturas con calificaciones o inasistencias registradas.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+

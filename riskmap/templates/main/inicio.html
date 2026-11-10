@@ -5,26 +5,147 @@
   {% if usuario.rol == 'administrador' %}
     <p>Administra los registros de la base de datos y las cuentas del sistema.</p>
     <a class="button" href="{{ url_for('admin.admin_inicio') }}">Abrir módulo Administrador</a>
-  {% elif usuario.rol == 'profesor' %}
-    <h2>Espacio del Profesor</h2>
-    <p>Importa estudiantes desde un Excel para un programa registrado.</p>
-    <form method="post" action="{{ url_for('main.importar') }}" enctype="multipart/form-data">
-      <label for="id_programa">Programa</label>
-      <select id="id_programa" name="id_programa" required>
-        <option value="">Selecciona un programa</option>
-        {% for id, nombre in programas %}
-          <option value="{{ id }}">{{ nombre }}</option>
-        {% endfor %}
-      </select>
-      <label for="archivo">Archivo Excel (.xlsx)</label>
-      <input id="archivo" type="file" name="archivo" accept=".xlsx" aria-describedby="columnas-excel" required>
-      <small id="columnas-excel">Columnas necesarias: Código, Estudiante y Correo.</small>
-      <br>
-      <button {% if not programas %}disabled{% endif %}>Procesar archivo</button>
-    </form>
   {% else %}
-    <h2>Espacio del Director de Programa</h2>
-    <p>Tu cuenta está activa. El acceso a las funciones de administración de registros corresponde al Administrador.</p>
+    <p class="muted">
+      <strong>UniAlert</strong> ·
+      {% if usuario.rol == 'profesor' %}
+        Vista Profesor — Mapa de riesgo por curso
+      {% else %}
+        Vista Director de Programa — Mapa de riesgo institucional
+      {% endif %}
+    </p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-total">
+        <span>Estudiantes</span>
+        <strong>{{ dashboard.kpis.total }}</strong>
+      </div>
+      <div class="kpi-card kpi-normal">
+        <span>Normal (0–29)</span>
+        <strong>{{ dashboard.kpis.normal }}</strong>
+      </div>
+      <div class="kpi-card kpi-atencion">
+        <span>Atención (30–59)</span>
+        <strong>{{ dashboard.kpis.atencion }}</strong>
+      </div>
+      <div class="kpi-card kpi-prioritario">
+        <span>Prioritario (60–100)</span>
+        <strong>{{ dashboard.kpis.prioritario }}</strong>
+      </div>
+    </div>
+
+    <h2>{{ 'Mapa de riesgo por curso' if usuario.rol == 'profesor' else 'Mapa de riesgo por semestre' }}</h2>
+    {% for b in dashboard.barras %}
+      <div class="risk-map-row">
+        {% if b.id_grupo is defined %}
+          <a class="risk-map-label" href="{{ url_for('main.ver_grupo', id_grupo=b.id_grupo) }}">{{ b.etiqueta }}</a>
+        {% else %}
+          <span class="risk-map-label">{{ b.etiqueta }}</span>
+        {% endif %}
+        <div class="risk-bar" title="Normal: {{ b.normal }} | Atención: {{ b.atencion }} | Prioritario: {{ b.prioritario }}">
+          {% if b.pct_normal > 0 %}
+            <div class="seg-normal" style="width: {{ b.pct_normal }}%"></div>
+          {% endif %}
+          {% if b.pct_atencion > 0 %}
+            <div class="seg-atencion" style="width: {{ b.pct_atencion }}%"></div>
+          {% endif %}
+          {% if b.pct_prioritario > 0 %}
+            <div class="seg-prioritario" style="width: {{ b.pct_prioritario }}%"></div>
+          {% endif %}
+        </div>
+        <span class="risk-map-count">{{ b.prioritario }} prioritario{{ '' if b.prioritario == 1 else 's' }}</span>
+      </div>
+    {% else %}
+      <p class="muted">Aún no hay calificaciones ni inasistencias cargadas para graficar el mapa de riesgo.</p>
+    {% endfor %}
+
+    <details class="risk-dropdown">
+      <summary>Mirar estudiantes prioritarios ({{ dashboard.prioritarios|length }})</summary>
+      <div class="dropdown-body">
+        {% for est in dashboard.prioritarios %}
+          <a class="priority-item" href="{{ url_for('main.ver_estudiante', id_estudiante=est.id_estudiante) }}">
+            <div class="priority-left">
+              <span class="priority-dot" aria-hidden="true"></span>
+              <div>
+                <span class="priority-name">{{ est.cod_estudiante }} · {{ est.nombre }}</span>
+                <span class="priority-sub">{{ est.total_materias }} asignatura{{ '' if est.total_materias == 1 else 's' }}</span>
+              </div>
+            </div>
+            <span class="priority-score">{{ est.puntaje }} pts</span>
+          </a>
+        {% else %}
+          <p class="muted">No hay estudiantes en nivel de atención prioritaria (60–100 pts).</p>
+        {% endfor %}
+      </div>
+    </details>
   {% endif %}
 </section>
+
+{% if usuario.rol in ('profesor', 'director_programa') %}
+<section class="card">
+  <h2>{{ 'Mis grupos asignados' if usuario.rol == 'profesor' else 'Grupos académicos por materia' }}</h2>
+  <p class="muted">
+    {% if usuario.rol == 'profesor' %}
+      Entra a cualquiera de tus materias para desplegar sus estudiantes en riesgo o cargar reportes en PDF.
+    {% else %}
+      Entra a cualquier materia para desplegar sus estudiantes en riesgo y consultar el listado del curso.
+    {% endif %}
+  </p>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Periodo</th>
+          <th scope="col">Programa</th>
+          <th scope="col">Semestre</th>
+          <th scope="col">Asignatura</th>
+          <th scope="col">Grupo</th>
+          {% if usuario.rol != 'profesor' %}<th scope="col">Docente</th>{% endif %}
+          <th scope="col">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in grupos %}
+        <tr>
+          <td>{{ g.periodo }}</td>
+          <td>{{ g.programa }}</td>
+          <td>{{ g.semestre }}°</td>
+          <td>{{ g.asignatura }} <small class="muted">({{ g.cod_asignatura }})</small></td>
+          <td>{{ g.nombre_grupo }} <small class="muted">({{ g.cod_grupo }})</small></td>
+          {% if usuario.rol != 'profesor' %}<td>{{ g.docente }}</td>{% endif %}
+          <td>
+            <a class="button" href="{{ url_for('main.ver_grupo', id_grupo=g.id_grupo) }}">Abrir materia</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7">No hay grupos registrados para mostrar.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if usuario.rol == 'profesor' %}
+<section class="card">
+  <h2>Importar estudiantes a un programa (PDF)</h2>
+  <p>Sube el listado de estudiantes en PDF para un programa registrado. La plataforma lo transforma internamente en Excel para extraer y registrar los estudiantes.</p>
+  <form method="post" action="{{ url_for('main.importar') }}" enctype="multipart/form-data">
+    <label for="id_programa">Programa</label>
+    <select id="id_programa" name="id_programa" required>
+      <option value="">Selecciona un programa</option>
+      {% for id, nombre in programas %}
+        <option value="{{ id }}">{{ nombre }}</option>
+      {% endfor %}
+    </select>
+    <label for="archivo">Reporte de estudiantes (.pdf)</label>
+    <input id="archivo" type="file" name="archivo" accept=".pdf" aria-describedby="columnas-pdf" required>
+    <small id="columnas-pdf">Columnas requeridas en el reporte: Código, Estudiante y Correo.</small>
+    <br>
+    <button {% if not programas %}disabled{% endif %}>Procesar PDF de estudiantes</button>
+  </form>
+</section>
+{% endif %}
 {% endblock %}
