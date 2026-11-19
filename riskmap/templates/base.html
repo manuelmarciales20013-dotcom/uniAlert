@@ -4,34 +4,82 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#008334">
-  <title>{{ titulo }} | riskMapUSB · Universidad Simón Bolívar</title>
+  <title>{{ titulo }} | Mapa de Riesgo Académico · Universidad Simón Bolívar</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo-universidad.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo-universidad.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400..600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body class="{{ 'authenticated' if usuario else 'guest' }}">
-  <header class="site-header">
-    <a class="brand" href="{{ url_for('main.inicio') if usuario else url_for('auth.login') }}" aria-label="riskMapUSB, inicio">
-      <img src="{{ url_for('static', filename='images/logo-universidad.png') }}" alt="Universidad Simón Bolívar" class="brand-logo">
-      <span class="brand-text"><strong>riskMapUSB</strong><span>Universidad Simón Bolívar</span></span>
-    </a>
-    {% if usuario %}
-    <nav aria-label="Navegación principal">
-      <span class="user-info">{{ usuario.nombre }}<small>{{ roles.get(usuario.rol, usuario.rol) }}</small></span>
-      <a href="{{ url_for('main.inicio') }}">Inicio</a>
-      {% if usuario.rol == 'administrador' %}<a href="{{ url_for('admin.admin_inicio') }}">Administración</a>{% endif %}
-      <a class="logout-link" href="{{ url_for('auth.cerrar_sesion') }}">Cerrar sesión</a>
-    </nav>
-    {% else %}<span class="header-caption">Portal de gestión académica</span>{% endif %}
-  </header>
+  <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+  <div class="ambient-bg" aria-hidden="true"></div>
+
+  {% if usuario %}
+  <div class="header-shell">
+    <header class="site-header">
+      <a class="brand" href="{{ url_for('main.inicio') }}" aria-label="Mapa de Riesgo Académico, inicio">
+        <img src="{{ url_for('static', filename='images/logo-universidad.png') }}" alt="Universidad Simón Bolívar" class="brand-logo">
+        <span class="brand-text">
+          <strong>Mapa de Riesgo Académico</strong>
+          <span>Universidad Simón Bolívar</span>
+        </span>
+      </a>
+      <nav aria-label="Navegación principal">
+        <span class="user-info">
+          {{ usuario.nombre }}
+          <small>{{ roles.get(usuario.rol, usuario.rol) }}</small>
+        </span>
+        <a class="nav-pill" href="{{ url_for('main.inicio') }}"><span>Dashboard</span></a>
+        {% if usuario.rol == 'administrador' %}
+          <a class="nav-pill" href="{{ url_for('admin.admin_inicio') }}"><span>Administración</span></a>
+        {% endif %}
+        <a class="logout-link" href="{{ url_for('auth.cerrar_sesion') }}">Cerrar sesión ↗</a>
+      </nav>
+    </header>
+  </div>
+  {% endif %}
+
   <main>
     {% with mensajes = get_flashed_messages(with_categories=true) %}
       {% for categoria, mensaje in mensajes %}
-      <div role="{{ 'alert' if categoria == 'error' else 'status' }}" class="notice {{ 'error' if categoria == 'error' else '' }}">{{ mensaje }}</div>
+      <div role="{{ 'alert' if categoria == 'error' else 'status' }}" class="notice {{ 'error' if categoria == 'error' else '' }}">
+        {{ mensaje }}
+      </div>
       {% endfor %}
     {% endwith %}
     {% block contenido %}{% endblock %}
   </main>
-  <footer>Universidad Simón Bolívar <span aria-hidden="true">·</span> riskMapUSB</footer>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="{{ url_for('static', filename='images/logo-universidad.png') }}" alt="" class="footer-logo" aria-hidden="true">
+        <div>
+          <strong>Universidad Simón Bolívar</strong>
+          <small class="mono-meta">MAPA DE RIESGO ACADÉMICO · SISTEMA INSTITUCIONAL DE ALERTA TEMPRANA</small>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var bar = document.getElementById("scroll-progress");
+      var tickingScroll = false;
+
+      window.addEventListener("scroll", function () {
+        if (!bar || tickingScroll) return;
+        tickingScroll = true;
+        window.requestAnimationFrame(function () {
+          var top = window.scrollY || document.documentElement.scrollTop;
+          var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+          bar.style.transform = "scaleX(" + (height > 0 ? top / height : 0) + ")";
+          tickingScroll = false;
+        });
+      }, { passive: true });
+    })();
+  </script>
 </body>
 </html>

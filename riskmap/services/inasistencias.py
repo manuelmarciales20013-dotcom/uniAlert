@@ -2,11 +2,10 @@ import openpyxl
 import pandas as pd
 from ..database import conectar
 
-# Relación entre el corte seleccionado, la columna de MySQL y los cortes anteriores
 CORTES = {
-    "P1": ("corte_1", []),
-    "P2": ("corte_2", ["corte_1"]),
-    "Exa": ("corte_3", ["corte_1", "corte_2"])
+    "P1": ("corte_1", [], "SET corte_1 = %s, corte_2 = NULL, corte_3 = NULL"),
+    "P2": ("corte_2", ["corte_1"], "SET corte_2 = %s, corte_3 = NULL"),
+    "Exa": ("corte_3", ["corte_1", "corte_2"], "SET corte_3 = %s"),
 }
 
 
@@ -24,18 +23,15 @@ def leer_titulo_excel(archivo_excel):
 
     partes = titulo.split(" - ")
     if len(partes) >= 3:
-        asignatura = partes[1].strip()
         grupo = partes[2].replace("Grupo", "").replace("grupo", "").strip()
-        return {"titulo": titulo, "asignatura": asignatura, "grupo": grupo}
-
+        return {"titulo": titulo, "asignatura": partes[1].strip(), "grupo": grupo}
     return {"titulo": titulo, "asignatura": "", "grupo": ""}
 
 
 def comparar_grupo_excel(info_excel, grupo_bd):
-    """Compara la asignatura y el grupo del Excel con el grupo seleccionado en pantalla."""
+    """Compara la asignatura y el grupo del Excel con el grupo seleccionado."""
     asig_excel = info_excel.get("asignatura", "").lower().strip()
     grupo_excel = info_excel.get("grupo", "").lower().strip().lstrip("0")
-
     if not asig_excel and not grupo_excel:
         return None
 
@@ -43,13 +39,8 @@ def comparar_grupo_excel(info_excel, grupo_bd):
     cod_grupo = str(grupo_bd.get("cod_grupo", "")).lower().strip()
     nom_grupo = str(grupo_bd.get("nombre_grupo", "")).lower().strip()
 
-    coincide_asig = True
-    if asig_excel and asig_bd:
-        coincide_asig = (asig_excel in asig_bd) or (asig_bd in asig_excel)
-
-    coincide_grupo = True
-    if grupo_excel:
-        coincide_grupo = (grupo_excel in cod_grupo) or (grupo_excel in nom_grupo)
+    coincide_asig = not (asig_excel and asig_bd) or (asig_excel in asig_bd) or (asig_bd in asig_excel)
+    coincide_grupo = not grupo_excel or (grupo_excel in cod_grupo) or (grupo_excel in nom_grupo)
 
     if not coincide_asig or not coincide_grupo:
         return (
@@ -61,61 +52,42 @@ def comparar_grupo_excel(info_excel, grupo_bd):
 
 def corte_inasistencia_ocupado(id_grupo, corte_actual):
     """Revisa si el corte elegido ya tiene inasistencias guardadas en este grupo."""
-    columna_sql, _ = CORTES[corte_actual]
+    columna_sql = CORTES[corte_actual][0]
     conexion = conectar()
     cursor = conexion.cursor()
     try:
-        cursor.execute(
-            f"""
-            SELECT COUNT({columna_sql})
-            FROM inasistencia
-            WHERE id_grupo = %s
-            """,
-            (id_grupo,)
-        )
-        cantidad = cursor.fetchone()[0]
-        return cantidad > 0
+        cursor.execute(f"SELECT COUNT({columna_sql}) FROM inasistencia WHERE id_grupo = %s", (id_grupo,))
+        return cursor.fetchone()[0] > 0
     finally:
         cursor.close()
         conexion.close()
 
 
 def cargar_inasistencias_excel(archivo_excel, id_grupo, corte_actual):
-    # Validar el corte seleccionado
+    """Carga las inasistencias del corte indicado restando el acumulado de cortes previos."""
     if corte_actual not in CORTES:
         raise ValueError("Corte inválido. Selecciona P1, P2 o Exa.")
 
     if hasattr(archivo_excel, "seek"):
         archivo_excel.seek(0)
 
-    # Leer el archivo Excel de inasistencias
     df = pd.read_excel(archivo_excel, header=2, dtype=str)
-
-    columna_sql, cortes_anteriores = CORTES[corte_actual]
+    _, cortes_anteriores, clausula_set = CORTES[corte_actual]
 
     conexion = conectar()
     cursor = conexion.cursor()
-
-    nuevos = 0
-    actualizados = 0
-    omitidos = []
-    errores = []
+    nuevos = actualizados = 0
+    omitidos, errores = [], []
 
     try:
         for _, fila in df.iterrows():
-
-            # Extraer el código del estudiante
             if pd.isna(fila["Código"]):
                 continue
 
-            codigo = str(fila["Código"]).strip()
-            if codigo.endswith(".0"):
-                codigo = codigo[:-2]
-
+            codigo = str(fila["Código"]).strip().removesuffix(".0")
             if not codigo or codigo.lower().startswith("promedio"):
                 continue
 
-            # Extraer el total acumulado de inasistencias
             if pd.isna(fila["Total"]):
                 errores.append(f"Estudiante {codigo}: total vacío.")
                 continue
@@ -124,125 +96,57 @@ def cargar_inasistencias_excel(archivo_excel, id_grupo, corte_actual):
             if total_excel < 0 or not total_excel.is_integer():
                 errores.append(f"Estudiante {codigo}: total inválido.")
                 continue
-
             total_excel = int(total_excel)
 
-            # 1. Buscar al estudiante por su código
-            cursor.execute(
-                """
-                SELECT id_estudiante
-                FROM estudiante
-                WHERE cod_estudiante = %s
-                """,
-                (codigo,)
-            )
-            resultado = cursor.fetchone()
-
-            if not resultado:
+            cursor.execute("SELECT id_estudiante FROM estudiante WHERE cod_estudiante = %s", (codigo,))
+            est_row = cursor.fetchone()
+            if not est_row:
                 omitidos.append(f"Estudiante no encontrado: {codigo}")
                 continue
 
-            id_estudiante = resultado[0]
-
-            # 2. Buscar el registro de inasistencias del estudiante para el grupo seleccionado
+            id_estudiante = est_row[0]
             cursor.execute(
-                """
-                SELECT id_inasistencia, corte_1, corte_2, corte_3
-                FROM inasistencia
-                WHERE id_estudiante = %s
-                  AND id_grupo = %s
-                """,
-                (id_estudiante, id_grupo)
+                "SELECT id_inasistencia, corte_1, corte_2, corte_3 FROM inasistencia WHERE id_estudiante = %s AND id_grupo = %s",
+                (id_estudiante, id_grupo),
             )
-            resultado = cursor.fetchone()
+            inas_row = cursor.fetchone()
 
-            if resultado:
-                id_inasistencia = resultado[0]
-                inasistencias = {
-                    "corte_1": resultado[1],
-                    "corte_2": resultado[2],
-                    "corte_3": resultado[3]
-                }
+            if inas_row:
+                previos = {"corte_1": inas_row[1], "corte_2": inas_row[2], "corte_3": inas_row[3]}
+                total_anterior = int(sum(previos[col] or 0 for col in cortes_anteriores))
+                inas_actuales = total_excel - total_anterior
 
-                # 3. Calcular el acumulado de los cortes anteriores
-                total_anterior = sum(
-                    inasistencias[columna] or 0
-                    for columna in cortes_anteriores
-                )
-
-                # 4. Calcular las inasistencias del corte actual
-                inasistencias_actuales = total_excel - int(total_anterior)
-
-                if inasistencias_actuales < 0:
+                if inas_actuales < 0:
                     errores.append(
                         f"Error para {codigo}: el total acumulado ({total_excel}) "
-                        f"es menor que el registrado anteriormente ({int(total_anterior)})."
+                        f"es menor que el registrado anteriormente ({total_anterior})."
                     )
                     continue
 
-                # 5. Actualizar el corte actual y limpiar cortes posteriores para que este sea el último corte cargado
-                if columna_sql == "corte_1":
-                    consulta_update = """
-                        UPDATE inasistencia
-                        SET corte_1 = %s, corte_2 = NULL, corte_3 = NULL
-                        WHERE id_inasistencia = %s
-                    """
-                elif columna_sql == "corte_2":
-                    consulta_update = """
-                        UPDATE inasistencia
-                        SET corte_2 = %s, corte_3 = NULL
-                        WHERE id_inasistencia = %s
-                    """
-                else:
-                    consulta_update = """
-                        UPDATE inasistencia
-                        SET corte_3 = %s
-                        WHERE id_inasistencia = %s
-                    """
-                cursor.execute(
-                    consulta_update,
-                    (inasistencias_actuales, id_inasistencia)
-                )
+                cursor.execute(f"UPDATE inasistencia {clausula_set} WHERE id_inasistencia = %s", (inas_actuales, inas_row[0]))
                 actualizados += 1
-
             else:
-                # Solo podemos crear el registro desde P1,
-                # porque los demás cortes necesitan el acumulado anterior
                 if cortes_anteriores:
-                    errores.append(
-                        f"Estudiante {codigo}: no existe un registro previo para calcular {corte_actual}."
-                    )
+                    errores.append(f"Estudiante {codigo}: no existe un registro previo para calcular {corte_actual}.")
                     continue
 
-                # 6. Insertar el registro inicial de inasistencias
                 cursor.execute(
-                    """
-                    INSERT INTO inasistencia
-                        (id_estudiante, id_grupo, corte_1)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (id_estudiante, id_grupo, total_excel)
+                    "INSERT INTO inasistencia (id_estudiante, id_grupo, corte_1) VALUES (%s, %s, %s)",
+                    (id_estudiante, id_grupo, total_excel),
                 )
                 nuevos += 1
 
-            # Registrar al estudiante en el grupo si aún no está asociado
             cursor.execute(
-                """
-                SELECT id_grupo_estudiante
-                FROM grupo_estudiante
-                WHERE id_grupo = %s AND id_estudiante = %s
-                """,
-                (id_grupo, id_estudiante)
+                "SELECT id_grupo_estudiante FROM grupo_estudiante WHERE id_grupo = %s AND id_estudiante = %s",
+                (id_grupo, id_estudiante),
             )
             if not cursor.fetchone():
                 cursor.execute(
                     "INSERT INTO grupo_estudiante (id_grupo, id_estudiante) VALUES (%s, %s)",
-                    (id_grupo, id_estudiante)
+                    (id_grupo, id_estudiante),
                 )
 
-        # Confirmar los cambios
         conexion.commit()
-
         return {
             "corte": corte_actual,
             "nuevos": nuevos,
@@ -250,12 +154,9 @@ def cargar_inasistencias_excel(archivo_excel, id_grupo, corte_actual):
             "omitidos": omitidos,
             "errores": errores,
         }
-
-    except Exception as e:
+    except Exception:
         conexion.rollback()
-        print("Error durante la carga:", e)
         raise
-
     finally:
         cursor.close()
         conexion.close()

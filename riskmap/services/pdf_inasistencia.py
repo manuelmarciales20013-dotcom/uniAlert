@@ -200,22 +200,59 @@ def _normalizar_columna(celda):
     return MAPA_COLUMNAS.get(limpio.lower(), limpio)
 
 
+def _limpiar_celda_texto(texto):
+    """Elimina fragmentos de URL o menús laterales que se superponen al imprimir desde la web."""
+    if not texto:
+        return ""
+    lineas_limpias = []
+    for linea in str(texto).splitlines():
+        linea = linea.strip()
+        if not linea or "/" in linea or ")" in linea or "▸" in linea:
+            continue
+        lineas_limpias.append(linea)
+    return " ".join(lineas_limpias)
+
+
 def convertir_pdf_tabla_a_excel_bytes(origen_pdf):
-    """Extrae tablas de un PDF (calificaciones o estudiantes) y devuelve un .xlsx en memoria."""
+    """Extrae la tabla de calificaciones o estudiantes de un PDF y devuelve un .xlsx en memoria."""
     encabezados = None
+    idx_codigo = None
+    idx_estudiante = None
     filas = []
 
     with pdfplumber.open(_abrir_stream_pdf(origen_pdf)) as pdf:
         for page in pdf.pages:
             for tabla in page.extract_tables() or []:
                 for fila in tabla:
-                    if not fila or not any(c and str(c).strip() for c in fila):
+                    if not fila:
                         continue
                     norm = [_normalizar_columna(c) for c in fila]
-                    if encabezados is None and "Código" in norm:
-                        encabezados = norm
-                    elif encabezados is not None and norm != encabezados:
-                        filas.append([str(c).strip() if c is not None else "" for c in fila])
+
+                    # Identificar la fila de encabezados de la tabla principal
+                    if "Código" in norm:
+                        if encabezados is None:
+                            encabezados = norm
+                            idx_codigo = encabezados.index("Código")
+                            if "Estudiante" in encabezados:
+                                idx_estudiante = encabezados.index("Estudiante")
+                        continue
+
+                    # Solo tomar filas de tablas que tengan las mismas columnas del encabezado
+                    if encabezados is None or len(fila) != len(encabezados):
+                        continue
+
+                    # Extraer únicamente el número de código del estudiante (ignora textos del menú lateral o pie de página)
+                    texto_cod = str(fila[idx_codigo] or "")
+                    coincidencia = re.search(r"\d{6,12}", texto_cod)
+                    if not coincidencia:
+                        continue
+
+                    fila_limpia = [str(c).strip() if c is not None else "" for c in fila]
+                    fila_limpia[idx_codigo] = coincidencia.group(0)
+                    if idx_estudiante is not None:
+                        fila_limpia[idx_estudiante] = _limpiar_celda_texto(fila[idx_estudiante])
+
+                    filas.append(fila_limpia)
 
             if encabezados is None:
                 lineas = []

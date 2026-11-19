@@ -1,7 +1,7 @@
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from werkzeug.security import generate_password_hash
 from ..auth import requiere_admin
-from ..constants import TABLAS
+from ..constants import ETIQUETAS_TABLA, TABLAS
 from ..database import conectar
 from ..services.schema import obtener_campos
 
@@ -11,7 +11,7 @@ bp = Blueprint("admin", __name__)
 @bp.route("/admin")
 @requiere_admin
 def admin_inicio():
-    return render_template("admin/index.html", titulo="Administrador", tablas=TABLAS)
+    return render_template("admin/index.html", titulo="Administrador", tablas=TABLAS, etiquetas_tabla=ETIQUETAS_TABLA)
 
 
 @bp.route("/admin/<tabla>")
@@ -32,7 +32,8 @@ def admin_tabla(tabla):
         cursor.close()
     finally:
         conexion.close()
-    return render_template("admin/tabla.html", titulo=tabla, tabla=tabla, campos=campos, pk=pk, filas=filas, registro=registro)
+    nombre_tabla = ETIQUETAS_TABLA.get(tabla, tabla)
+    return render_template("admin/tabla.html", titulo=nombre_tabla, tabla=tabla, nombre_tabla=nombre_tabla, campos=campos, pk=pk, filas=filas, registro=registro)
 
 
 @bp.post("/admin/<tabla>/guardar")

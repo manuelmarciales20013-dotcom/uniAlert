@@ -254,6 +254,8 @@ class PortalTests(unittest.TestCase):
         self.assertEqual(resumen["cortes_activos"], ["P1"])
         self.assertEqual(resumen["actualizados"], 1)
         self.assertEqual(resumen["nuevos"], 1)
+        self.assertEqual(len(resumen["exitosos"]), 2)
+        self.assertIn("20201001 · Ana", resumen["exitosos"][0])
 
         llamadas_sql = [llamada.args for llamada in cursor.execute.call_args_list]
         updates = [params for sql, params in llamadas_sql if "UPDATE calificacion" in sql]
@@ -262,23 +264,37 @@ class PortalTests(unittest.TestCase):
         self.assertEqual(inserts[0], (11, 1, 0.0, None, None))
 
     def test_motor_reglas_riesgo_y_vista_estudiante(self):
-        # 1. Estudiante prioritario: última nota < 3.0 (+40), faltas último corte >= 6 (+30), tendencia descendente (+20) = 90
-        r_prio = evaluar_riesgo_materia(2.8, 2.2, None, 2, 6, None)
-        self.assertEqual(r_prio["puntaje"], 90)
-        self.assertEqual(r_prio["nivel"], "prioritario")
+        # 1. Primer corte (P1): 5% inasistencia pasa a Atención (+30), 8% pasa a Prioritario (+60)
+        r_p1_aten = evaluar_riesgo_materia(4.5, None, None, 5, None, None)
+        self.assertEqual(r_p1_aten["puntaje"], 30)
+        self.assertEqual(r_p1_aten["nivel"], "atencion")
 
-        # 2. Estudiante en atención: última nota 3.6 (+10), tendencia descendente (+20) = 30
-        r_aten = evaluar_riesgo_materia(4.0, 3.6, None, 5, 0, None)
+        r_p1_prio = evaluar_riesgo_materia(4.5, None, None, 8, None, None)
+        self.assertEqual(r_p1_prio["puntaje"], 60)
+        self.assertEqual(r_p1_prio["nivel"], "prioritario")
+
+        # 2. Segundo corte (P2): 10% inasistencia pasa a Atención (+30), 15% pasa a Prioritario (+60)
+        r_p2_aten = evaluar_riesgo_materia(4.0, 4.2, None, 6, 4, None)
+        self.assertEqual(r_p2_aten["puntaje"], 30)
+        self.assertEqual(r_p2_aten["nivel"], "atencion")
+
+        r_p2_prio = evaluar_riesgo_materia(4.0, 4.2, None, 8, 7, None)
+        self.assertEqual(r_p2_prio["puntaje"], 60)
+        self.assertEqual(r_p2_prio["nivel"], "prioritario")
+
+        # 3. Estudiante en atención por nota y tendencia: promedio (4.0 + 3.2)/2 = 3.6 (+10), tendencia descendente (+20) = 30
+        r_aten = evaluar_riesgo_materia(4.0, 3.2, None, 2, 0, None)
+        self.assertEqual(r_aten["promedio"], 3.6)
         self.assertEqual(r_aten["puntaje"], 30)
         self.assertEqual(r_aten["nivel"], "atencion")
 
-        # 3. Estudiante normal: promedio >= 4.0 (+0), pocas faltas (+0) = 0
-        r_norm = evaluar_riesgo_materia(4.2, 4.5, None, 0, 1, None)
+        # 4. Estudiante normal: última nota >= 4.0 (+0), inasistencia P2 < 10% (+0) = 0
+        r_norm = evaluar_riesgo_materia(4.2, 4.5, None, 4, 1, None)
         self.assertEqual(r_norm["puntaje"], 0)
         self.assertEqual(r_norm["nivel"], "normal")
 
-        # 4. Riesgo global combinando materias
-        global_est = evaluar_riesgo_global_estudiante([r_prio, r_aten])
+        # 5. Riesgo global combinando materias
+        global_est = evaluar_riesgo_global_estudiante([r_p2_prio, r_aten])
         self.assertEqual(global_est["rojas"], 1)
         self.assertEqual(global_est["amarillas"], 1)
         self.assertEqual(global_est["nivel"], "prioritario")

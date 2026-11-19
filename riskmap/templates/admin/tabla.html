@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('admin.admin_inicio') }}">← Volver a las tablas</a>
+
 <section class="card">
-  <h1>Administrar: {{ tabla }}</h1>
+  <div class="section-head">
+    <span class="section-tag">• GESTIÓN DE REGISTROS</span>
+    <h1>Administrar: {{ nombre_tabla or tabla }}</h1>
+  </div>
   <p class="muted">Los campos de clave primaria automática se generan al guardar.</p>
   <h2>{{ 'Editar registro' if registro else 'Crear registro' }}</h2>
   <form method="post" action="{{ url_for('admin.guardar_registro', tabla=tabla) }}">
@@ -34,12 +38,16 @@
         {% endif %}
       {% endfor %}
     </div>
-    <button type="submit">{{ 'Guardar cambios' if registro else 'Crear registro' }}</button>
+    <button type="submit">{{ 'Guardar cambios →' if registro else 'Crear registro →' }}</button>
     {% if registro %}<a class="button secondary" href="{{ url_for('admin.admin_tabla', tabla=tabla) }}">Cancelar</a>{% endif %}
   </form>
 </section>
+
 <section class="card">
-  <h2>Registros</h2>
+  <div class="section-head">
+    <span class="section-tag">• BASE DE DATOS</span>
+    <h2>Registros</h2>
+  </div>
   <div class="tablewrap">
     <table>
       <thead>

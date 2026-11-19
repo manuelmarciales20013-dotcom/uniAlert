@@ -2,35 +2,45 @@
 {% block contenido %}
 <a class="back-link" href="{{ url_for('main.inicio') }}">← Volver al dashboard</a>
 
-<section class="card">
-  <h1>{{ estudiante.nombre }}</h1>
-  <p class="muted">
+<section class="hero-banner hero-compact">
+  <h1>Estudiante: {{ estudiante.nombre }}</h1>
+  <p class="hero-lead">
+    <strong>Programa:</strong> {{ estudiante.programa }} ·
     <strong>Código institucional:</strong> {{ estudiante.cod_estudiante }} ·
-    <strong>Correo:</strong> {{ estudiante.correo }} ·
-    <strong>Programa:</strong> {{ estudiante.programa }}
+    <strong>Correo:</strong> {{ estudiante.correo }}
   </p>
+</section>
+
+<section class="card">
+  <div class="section-head">
+    <span class="section-tag">• DIAGNÓSTICO GLOBAL</span>
+    <h2>Indicadores consolidados del estudiante</h2>
+  </div>
 
   <div class="kpi-grid">
     <div class="kpi-card kpi-{{ riesgo_global.nivel }}">
-      <span>Riesgo global ({{ riesgo_global.etiqueta }})</span>
-      <strong>{{ riesgo_global.puntaje }} / 100</strong>
+      <strong style="font-size: 26px;">{{ riesgo_global.etiqueta }}</strong>
+      <span>Estado de alerta global</span>
     </div>
     <div class="kpi-card kpi-total">
-      <span>Promedio general disponible</span>
       <strong>{{ '%.2f'|format(riesgo_global.promedio_global) if riesgo_global.promedio_global is not none else '—' }}</strong>
+      <span>Promedio disponible</span>
     </div>
     <div class="kpi-card kpi-atencion">
-      <span>Inasistencias acumuladas</span>
-      <strong>{{ riesgo_global.inasistencia_global }}</strong>
+      <strong>{{ riesgo_global.inasistencia_global }}%</strong>
+      <span>% Inasistencia actual</span>
     </div>
     <div class="kpi-card kpi-prioritario">
-      <span>Asignaturas en alerta</span>
       <strong>{{ riesgo_global.rojas }} rojas · {{ riesgo_global.amarillas }} amarillas</strong>
+      <span>Asignaturas en alerta</span>
     </div>
   </div>
 
-  <h2>Explicación del riesgo global</h2>
-  <ul>
+  <div class="section-head" style="margin-top: 24px;">
+    <span class="section-tag">• TRAZABILIDAD</span>
+    <h2>Factores del estado global</h2>
+  </div>
+  <ul class="reason-list" style="font-size: 14px; line-height: 1.75;">
     {% for motivo in riesgo_global.motivos %}
       <li>{{ motivo }}</li>
     {% endfor %}
@@ -38,7 +48,10 @@
 </section>
 
 <section class="card">
-  <h2>Riesgo detallado por materia</h2>
+  <div class="section-head">
+    <span class="section-tag">• DESGLOSE POR CURSO</span>
+    <h2>Estado de riesgo por materia</h2>
+  </div>
   <div class="tablewrap">
     <table>
       <thead>
@@ -50,11 +63,10 @@
           <th scope="col">Docente</th>
           <th scope="col">Notas (P1 / P2 / Exa)</th>
           <th scope="col">Promedio</th>
-          <th scope="col">Faltas (P1 / P2 / Exa)</th>
-          <th scope="col">Total Faltas</th>
-          <th scope="col">Puntaje</th>
-          <th scope="col">Nivel</th>
-          <th scope="col">Explicación de puntos</th>
+          <th scope="col">Inasistencia (P1 / P2 / Exa)</th>
+          <th scope="col">% Inasistencia</th>
+          <th scope="col">Nivel de alerta</th>
+          <th scope="col">Factores explicables</th>
         </tr>
       </thead>
       <tbody>
@@ -68,19 +80,18 @@
           </td>
           <td>{{ m.nombre_grupo }}</td>
           <td>{{ m.docente }}</td>
-          <td>
+          <td class="mono-cell">
             {{ m.nota_1 if m.nota_1 is not none else '—' }} /
             {{ m.nota_2 if m.nota_2 is not none else '—' }} /
             {{ m.nota_3 if m.nota_3 is not none else '—' }}
           </td>
-          <td><strong>{{ '%.2f'|format(m.promedio) if m.promedio is not none else '—' }}</strong></td>
-          <td>
-            {{ m.inas_1|int if m.inas_1 is not none else '—' }} /
-            {{ m.inas_2|int if m.inas_2 is not none else '—' }} /
-            {{ m.inas_3|int if m.inas_3 is not none else '—' }}
+          <td class="mono-cell"><strong>{{ '%.2f'|format(m.promedio) if m.promedio is not none else '—' }}</strong></td>
+          <td class="mono-cell">
+            {{ (m.inas_1|int ~ '%') if m.inas_1 is not none else '—' }} /
+            {{ (m.inas_2|int ~ '%') if m.inas_2 is not none else '—' }} /
+            {{ (m.inas_3|int ~ '%') if m.inas_3 is not none else '—' }}
           </td>
-          <td><strong>{{ m.total_inasistencias if m.total_inasistencias is not none else '—' }}</strong></td>
-          <td><strong>{{ m.puntaje }}</strong></td>
+          <td class="mono-cell"><strong>{{ (m.total_inasistencias ~ '%') if m.total_inasistencias is not none else '—' }}</strong></td>
           <td><span class="badge badge-{{ m.nivel }}">{{ m.etiqueta }}</span></td>
           <td>
             <ul class="reason-list">
@@ -90,7 +101,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="12">El estudiante aún no tiene asignaturas con calificaciones o inasistencias registradas.</td>
+          <td colspan="11">El estudiante aún no tiene asignaturas con calificaciones o inasistencias registradas.</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -98,4 +109,3 @@
   </div>
 </section>
 {% endblock %}
-
