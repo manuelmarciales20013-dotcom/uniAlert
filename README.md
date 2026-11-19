@@ -35,13 +35,15 @@ Para cada estudiante dentro de una asignatura se evalúan tres indicadores sobre
 
 | Indicador | Condición | Puntos |
 |---|---|---|
-| **Calificación** (promedio disponible) | `>= 4.0` | `0` |
-| **Calificación** (promedio disponible) | `3.5 – 3.99` | `+10` |
-| **Calificación** (promedio disponible) | `3.0 – 3.49` | `+20` |
-| **Calificación** (promedio disponible) | `< 3.0` | `+40` |
-| **Inasistencia** (acumulado en la materia) | Nivel medio (`3 a 5` faltas) | `+15` |
-| **Inasistencia** (acumulado en la materia) | Nivel alto (`>= 6` faltas) | `+30` |
-| **Tendencia** | Notas descendentes entre cortes consecutivos disponibles (ej. `P2 < P1` o `Exa < P2`) | `+20` |
+| **Calificación** (promedio de cortes cargados) | `>= 4.0` | `0` |
+| **Calificación** (promedio de cortes cargados) | `3.5 – 3.99` | `+10` |
+| **Calificación** (promedio de cortes cargados) | `3.0 – 3.49` | `+20` |
+| **Calificación** (promedio de cortes cargados) | `< 3.0` | `+40` |
+| **Inasistencia en Primer Corte (P1)** | `5% a 7%` -> pasa a **Atención** | `+30` |
+| **Inasistencia en Primer Corte (P1)** | `>= 8%` -> pasa a **Prioritario** | `+60` |
+| **Inasistencia en Segundo Corte / Final (P2 / Exa)** | `10% a 14%` -> pasa a **Atención** | `+30` |
+| **Inasistencia en Segundo Corte / Final (P2 / Exa)** | `>= 15%` -> pasa a **Prioritario** | `+60` |
+| **Tendencia** | Nota descendente en el último corte respecto al anterior | `+20` |
 
 > Si la suma supera `100`, el puntaje se limita automáticamente a **`100`**.
 

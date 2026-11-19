@@ -88,6 +88,7 @@ def importar():
 
 def _renderizar_vista_grupo(grupo, confirmacion_pendiente=None):
     detalle = obtener_detalle_grupo(grupo["id_grupo"])
+    reporte_carga = session.pop("reporte_carga", None)
     return render_template(
         "main/grupo.html",
         titulo=f"{grupo['asignatura']} - {grupo['nombre_grupo']}",
@@ -99,6 +100,7 @@ def _renderizar_vista_grupo(grupo, confirmacion_pendiente=None):
         cortes=CORTES,
         puede_modificar=usuario_puede_modificar_grupo(session["usuario"], grupo),
         confirmacion_pendiente=confirmacion_pendiente,
+        reporte_carga=reporte_carga,
     )
 
 
@@ -187,9 +189,12 @@ def cargar_inasistencias(id_grupo):
                 )
 
         resumen = cargar_inasistencias_excel(excel_bytes, id_grupo, corte)
+        total_errores_inas = len(resumen["omitidos"]) + len(resumen["errores"])
         flash(
-            f"Inasistencias de {corte} cargadas: "
-            f"{resumen['nuevos']} nuevos, {resumen['actualizados']} actualizados."
+            f"Inasistencias cargadas correctamente\n"
+            f"• Corte actualizado: {corte}\n"
+            f"• Registros nuevos: {resumen['nuevos']}   |   Registros actualizados: {resumen['actualizados']}\n"
+            f"• Registros con error: {total_errores_inas}"
         )
         for msj in resumen["omitidos"] + resumen["errores"]:
             flash(msj, "error")
@@ -213,11 +218,28 @@ def cargar_calificaciones(id_grupo):
         excel_bytes = _a_excel_en_memoria(request.files.get("archivo"))
         resumen = cargar_calificaciones_excel(excel_bytes, id_grupo)
         cortes_txt = ", ".join(resumen["cortes_activos"]) or "ningún corte activo"
+        exitosos = resumen.get("exitosos", [])
+        fallidos = resumen.get("omitidos", []) + resumen.get("errores", [])
+        total_exitos = len(exitosos)
+        total_errores = len(fallidos)
+
+        session["reporte_carga"] = {
+            "titulo": f"Reporte de carga de calificaciones ({cortes_txt})",
+            "nuevos": resumen["nuevos"],
+            "actualizados": resumen["actualizados"],
+            "total_exitos": total_exitos,
+            "total_errores": total_errores,
+            "exitosos": exitosos,
+            "fallidos": fallidos,
+        }
+
         flash(
-            f"Calificaciones actualizadas ({cortes_txt}): "
-            f"{resumen['nuevos']} nuevos, {resumen['actualizados']} actualizados."
+            f"Calificaciones actualizadas correctamente\n"
+            f"• Cortes detectados: {cortes_txt}\n"
+            f"• Estudiantes procesados con éxito: {total_exitos}   (Nuevos: {resumen['nuevos']}   |   Actualizados: {resumen['actualizados']})\n"
+            f"• Estudiantes con error: {total_errores}"
         )
-        for msj in resumen["omitidos"] + resumen["errores"]:
+        for msj in fallidos:
             flash(msj, "error")
 
     except Exception as error:

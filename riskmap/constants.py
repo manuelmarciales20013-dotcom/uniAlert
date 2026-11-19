@@ -3,6 +3,19 @@ TABLAS = (
     "grupo_estudiante", "inasistencia", "periodo", "programa", "usuario",
 )
 
+ETIQUETAS_TABLA = {
+    "asignatura": "Asignatura",
+    "calificacion": "Calificación",
+    "docente": "Docente",
+    "estudiante": "Estudiante",
+    "grupo": "Grupo",
+    "grupo_estudiante": "Grupo del estudiante",
+    "inasistencia": "Inasistencia",
+    "periodo": "Periodo",
+    "programa": "Programa",
+    "usuario": "Usuario",
+}
+
 ROLES = ("profesor", "director_programa", "administrador")
 
 ETIQUETAS_ROL = {
